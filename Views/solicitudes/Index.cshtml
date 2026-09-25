@@ -1,0 +1,61 @@
+@model IEnumerable<PlataformaCreditos.Models.SolicitudCredito>
+
+@{
+    ViewData["Title"] = "Mis solicitudes";
+}
+
+<h1>Mis solicitudes</h1>
+
+@if (TempData["Mensaje"] != null)
+{
+    <div class="alert alert-success">
+        @TempData["Mensaje"]
+    </div>
+}
+
+<p>
+    <a class="btn btn-primary" asp-action="Create">
+        Nueva solicitud
+    </a>
+</p>
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Monto</th>
+            <th>Fecha</th>
+            <th>Estado</th>
+            <th></th>
+        </tr>
+    </thead>
+
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>@item.Id</td>
+
+                <td>
+                    S/ @item.MontoSolicitado
+                </td>
+
+                <td>
+                    @item.FechaSolicitud.ToLocalTime()
+                </td>
+
+                <td>
+                    @item.Estado
+                </td>
+
+                <td>
+                    <a class="btn btn-info"
+                       asp-action="Details"
+                       asp-route-id="@item.Id">
+                        Ver detalle
+                    </a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

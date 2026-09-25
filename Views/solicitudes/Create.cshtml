@@ -1,0 +1,37 @@
+@{
+    ViewData["Title"] = "Nueva solicitud";
+}
+
+<h1>Nueva solicitud de crédito</h1>
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert alert-danger">
+        @ViewBag.Error
+    </div>
+}
+
+<form asp-action="Create" method="post">
+
+    <div class="mb-3">
+        <label class="form-label">
+            Monto solicitado
+        </label>
+
+        <input type="number"
+               name="montoSolicitado"
+               class="form-control"
+               min="0.01"
+               step="0.01"
+               required />
+    </div>
+
+    <button type="submit" class="btn btn-success">
+        Registrar solicitud
+    </button>
+
+    <a asp-action="Index" class="btn btn-secondary">
+        Cancelar
+    </a>
+
+</form>

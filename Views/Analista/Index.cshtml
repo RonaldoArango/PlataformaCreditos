@@ -1,0 +1,96 @@
+@model IEnumerable<PlataformaCreditos.Models.SolicitudCredito>
+
+@{
+    ViewData["Title"] = "Panel de Analista";
+}
+
+<h1>Panel de Analista</h1>
+
+@if (TempData["Mensaje"] != null)
+{
+    <div class="alert alert-success">
+        @TempData["Mensaje"]
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">
+        @TempData["Error"]
+    </div>
+}
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info">
+        No hay solicitudes pendientes.
+    </div>
+}
+
+@foreach (var solicitud in Model)
+{
+    <div class="card mb-3">
+
+        <div class="card-body">
+
+            <h4>
+                Solicitud #@solicitud.Id
+            </h4>
+
+            <p>
+                <strong>Cliente:</strong>
+                @solicitud.Cliente?.UsuarioId
+            </p>
+
+            <p>
+                <strong>Ingresos:</strong>
+                S/ @solicitud.Cliente?.IngresosMensuales
+            </p>
+
+            <p>
+                <strong>Monto:</strong>
+                S/ @solicitud.MontoSolicitado
+            </p>
+
+            <p>
+                <strong>Fecha:</strong>
+                @solicitud.FechaSolicitud.ToLocalTime()
+            </p>
+
+            <form asp-action="Aprobar"
+                  method="post"
+                  style="display:inline">
+
+                <input type="hidden"
+                       name="id"
+                       value="@solicitud.Id" />
+
+                <button type="submit"
+                        class="btn btn-success">
+                    Aprobar
+                </button>
+            </form>
+
+            <form asp-action="Rechazar"
+                  method="post"
+                  style="display:inline">
+
+                <input type="hidden"
+                       name="id"
+                       value="@solicitud.Id" />
+
+                <input type="text"
+                       name="motivoRechazo"
+                       placeholder="Motivo de rechazo"
+                       required />
+
+                <button type="submit"
+                        class="btn btn-danger">
+                    Rechazar
+                </button>
+            </form>
+
+        </div>
+
+    </div>
+}
