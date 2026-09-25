@@ -23,16 +23,24 @@
 
         <p>
             <strong>Estado:</strong>
-            @Model.Estado
+            <span id="estadoSolicitud">@Model.Estado</span>
         </p>
 
-        @if (!string.IsNullOrEmpty(Model.MotivoRechazo))
-        {
-            <p>
-                <strong>Motivo de rechazo:</strong>
-                @Model.MotivoRechazo
-            </p>
-        }
+        <p id="motivoContainer" style="@(string.IsNullOrEmpty(Model.MotivoRechazo) ? "display:none;" : "")">
+            <strong>Motivo de rechazo:</strong>
+            <span id="motivoRechazo">@Model.MotivoRechazo</span>
+        </p>
+
+        <p>
+            <strong>Conexión:</strong>
+            <span id="estadoConexion">Conectando...</span>
+        </p>
+
+        <div id="avisoActualizacion"
+             class="alert alert-success"
+             style="display:none;">
+            El estado de tu solicitud fue actualizado.
+        </div>
 
     </div>
 </div>
@@ -42,3 +50,90 @@
 <a asp-action="Index" class="btn btn-secondary">
     Volver
 </a>
+
+@section Scripts {
+
+    <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@10.0.0/dist/browser/signalr.min.js"></script>
+
+    <script>
+        const solicitudId = @Model.Id;
+
+        const estadoSolicitud =
+            document.getElementById("estadoSolicitud");
+
+        const motivoContainer =
+            document.getElementById("motivoContainer");
+
+        const motivoRechazo =
+            document.getElementById("motivoRechazo");
+
+        const estadoConexion =
+            document.getElementById("estadoConexion");
+
+        const avisoActualizacion =
+            document.getElementById("avisoActualizacion");
+
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/hubs/solicitudes", {
+                transport: signalR.HttpTransportType.WebSockets
+            })
+            .withAutomaticReconnect()
+            .build();
+
+        connection.on("SolicitudEstadoActualizado", function (data) {
+
+            if (data.solicitudId != solicitudId) {
+                return;
+            }
+
+            estadoSolicitud.textContent = data.estado;
+
+            if (data.motivoRechazo) {
+                motivoRechazo.textContent = data.motivoRechazo;
+                motivoContainer.style.display = "block";
+            } else {
+                motivoContainer.style.display = "none";
+            }
+
+            avisoActualizacion.style.display = "block";
+        });
+
+        connection.onreconnecting(function () {
+            estadoConexion.textContent = "Reconectando...";
+        });
+
+        connection.onreconnected(function () {
+            estadoConexion.textContent = "Conectado";
+
+            // Al reconectar, vuelve a consultar el estado vigente
+            // desde el servidor.
+            window.location.reload();
+        });
+
+        connection.onclose(function () {
+            estadoConexion.textContent = "Desconectado";
+        });
+
+        async function iniciarConexion() {
+
+            try {
+
+                await connection.start();
+
+                estadoConexion.textContent = "Conectado";
+
+                console.log("SignalR conectado correctamente.");
+
+            } catch (err) {
+
+                estadoConexion.textContent = "Error de conexión";
+
+                console.error(err);
+
+                setTimeout(iniciarConexion, 5000);
+            }
+        }
+
+        iniciarConexion();
+    </script>
+}
