@@ -16,6 +16,8 @@ namespace PlataformaCreditos.Data
 
         public DbSet<SolicitudCredito> SolicitudesCredito { get; set; }
 
+        public DbSet<Notificacion> Notificaciones { get; set; }
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
@@ -38,11 +40,18 @@ namespace PlataformaCreditos.Data
                 .HasForeignKey(s => s.ClienteId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Un cliente no puede tener más de una solicitud Pendiente
             builder.Entity<SolicitudCredito>()
-                .HasIndex(s => new { s.ClienteId, s.Estado })
+                .HasIndex(s => new
+                {
+                    s.ClienteId,
+                    s.Estado
+                })
                 .IsUnique()
                 .HasFilter("[Estado] = 0");
+
+            builder.Entity<Notificacion>()
+                .HasIndex(n => n.MessageId)
+                .IsUnique();
         }
     }
 }
