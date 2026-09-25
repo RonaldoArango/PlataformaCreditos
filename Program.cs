@@ -3,19 +3,28 @@ using Microsoft.EntityFrameworkCore;
 using PlataformaCreditos.Data;
 using PlataformaCreditos.Hubs;
 using PlataformaCreditos.Models;
+using PlataformaCreditos.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Connection String
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+// ======================================================
+// DATABASE
+// ======================================================
+
+var connectionString =
+    builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException(
+        "Connection string 'DefaultConnection' not found.");
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(connectionString));
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-// Identity + Roles
-// Identity + Roles
+// ======================================================
+// IDENTITY + ROLES
+// ======================================================
+
 builder.Services
     .AddDefaultIdentity<IdentityUser>(options =>
     {
@@ -24,7 +33,10 @@ builder.Services
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>();
 
-// Redis Cache
+// ======================================================
+// REDIS / CACHE
+// ======================================================
+
 if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddDistributedMemoryCache();
@@ -33,16 +45,32 @@ else
 {
     builder.Services.AddStackExchangeRedisCache(options =>
     {
-        options.Configuration =
+        var redisConnection =
             builder.Configuration["Redis:ConnectionString"]
             ?? throw new InvalidOperationException(
                 "Redis:ConnectionString no configurado.");
 
+        // Render entrega la URL como:
+        // redis://host:6379
+        //
+        // StackExchange.Redis necesita:
+        // host:6379
+
+        if (redisConnection.StartsWith("redis://"))
+        {
+            redisConnection =
+                redisConnection.Substring("redis://".Length);
+        }
+
+        options.Configuration = redisConnection;
         options.InstanceName = "PlataformaCreditos:";
     });
 }
 
-// Session
+// ======================================================
+// SESSION
+// ======================================================
+
 builder.Services.AddSession(options =>
 {
     options.IdleTimeout = TimeSpan.FromMinutes(30);
@@ -50,29 +78,54 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
+// ======================================================
 // MVC
+// ======================================================
+
 builder.Services.AddControllersWithViews();
 
+// ======================================================
+// RABBITMQ
+// ======================================================
+
+// Publisher
+builder.Services.AddSingleton<RabbitMqPublisher>();
+
+// Consumer
+builder.Services.AddHostedService<RabbitMqConsumer>();
+
+// ======================================================
+// SIGNALR
+// ======================================================
+
 builder.Services.AddSignalR();
+
+// ======================================================
+// PORT
+// ======================================================
 
 builder.WebHost.UseUrls(
     $"http://0.0.0.0:{Environment.GetEnvironmentVariable("PORT") ?? "10000"}"
 );
 
-
 var app = builder.Build();
 
 // ======================================================
-// SEED INICIAL - PREGUNTA 1
+// SEED INICIAL
 // ======================================================
 
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
 
-    var context = services.GetRequiredService<ApplicationDbContext>();
-    var userManager = services.GetRequiredService<UserManager<IdentityUser>>();
-    var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
+    var context =
+        services.GetRequiredService<ApplicationDbContext>();
+
+    var userManager =
+        services.GetRequiredService<UserManager<IdentityUser>>();
+
+    var roleManager =
+        services.GetRequiredService<RoleManager<IdentityRole>>();
 
     // -------------------------------
     // Crear rol Analista
@@ -81,17 +134,16 @@ using (var scope = app.Services.CreateScope())
     if (!await roleManager.RoleExistsAsync("Analista"))
     {
         await roleManager.CreateAsync(
-            new IdentityRole("Analista")
-        );
+            new IdentityRole("Analista"));
     }
 
     // -------------------------------
     // Crear usuario Analista
     // -------------------------------
 
-    var analista = await userManager.FindByEmailAsync(
-        "analista@credito.com"
-    );
+    var analista =
+        await userManager.FindByEmailAsync(
+            "analista@credito.com");
 
     if (analista == null)
     {
@@ -102,27 +154,27 @@ using (var scope = app.Services.CreateScope())
             EmailConfirmed = true
         };
 
-        var resultado = await userManager.CreateAsync(
-            analista,
-            "Analista123!"
-        );
+        var resultado =
+            await userManager.CreateAsync(
+                analista,
+                "Analista123!");
 
         if (resultado.Succeeded)
         {
             await userManager.AddToRoleAsync(
                 analista,
-                "Analista"
-            );
+                "Analista");
         }
     }
     else
     {
-        if (!await userManager.IsInRoleAsync(analista, "Analista"))
+        if (!await userManager.IsInRoleAsync(
+                analista,
+                "Analista"))
         {
             await userManager.AddToRoleAsync(
                 analista,
-                "Analista"
-            );
+                "Analista");
         }
     }
 
@@ -130,9 +182,9 @@ using (var scope = app.Services.CreateScope())
     // Crear Cliente Usuario 1
     // -------------------------------
 
-    var usuario1 = await userManager.FindByEmailAsync(
-        "cliente1@credito.com"
-    );
+    var usuario1 =
+        await userManager.FindByEmailAsync(
+            "cliente1@credito.com");
 
     if (usuario1 == null)
     {
@@ -145,17 +197,16 @@ using (var scope = app.Services.CreateScope())
 
         await userManager.CreateAsync(
             usuario1,
-            "Cliente123!"
-        );
+            "Cliente123!");
     }
 
     // -------------------------------
     // Crear Cliente Usuario 2
     // -------------------------------
 
-    var usuario2 = await userManager.FindByEmailAsync(
-        "cliente2@credito.com"
-    );
+    var usuario2 =
+        await userManager.FindByEmailAsync(
+            "cliente2@credito.com");
 
     if (usuario2 == null)
     {
@@ -168,16 +219,17 @@ using (var scope = app.Services.CreateScope())
 
         await userManager.CreateAsync(
             usuario2,
-            "Cliente123!"
-        );
+            "Cliente123!");
     }
 
     // -------------------------------
     // Crear Cliente 1
     // -------------------------------
 
-    var cliente1 = await context.Clientes
-        .FirstOrDefaultAsync(c => c.UsuarioId == usuario1.Id);
+    var cliente1 =
+        await context.Clientes
+            .FirstOrDefaultAsync(
+                c => c.UsuarioId == usuario1.Id);
 
     if (cliente1 == null)
     {
@@ -195,8 +247,10 @@ using (var scope = app.Services.CreateScope())
     // Crear Cliente 2
     // -------------------------------
 
-    var cliente2 = await context.Clientes
-        .FirstOrDefaultAsync(c => c.UsuarioId == usuario2.Id);
+    var cliente2 =
+        await context.Clientes
+            .FirstOrDefaultAsync(
+                c => c.UsuarioId == usuario2.Id);
 
     if (cliente2 == null)
     {
@@ -218,7 +272,6 @@ using (var scope = app.Services.CreateScope())
 
     if (!await context.SolicitudesCredito.AnyAsync())
     {
-        // Solicitud Pendiente
         context.SolicitudesCredito.Add(
             new SolicitudCredito
             {
@@ -226,26 +279,24 @@ using (var scope = app.Services.CreateScope())
                 MontoSolicitado = 5000,
                 FechaSolicitud = DateTime.UtcNow,
                 Estado = EstadoSolicitud.Pendiente
-            }
-        );
+            });
 
-        // Solicitud Aprobada
         context.SolicitudesCredito.Add(
             new SolicitudCredito
             {
                 ClienteId = cliente2.Id,
                 MontoSolicitado = 10000,
-                FechaSolicitud = DateTime.UtcNow.AddDays(-1),
+                FechaSolicitud =
+                    DateTime.UtcNow.AddDays(-1),
                 Estado = EstadoSolicitud.Aprobado
-            }
-        );
+            });
 
         await context.SaveChangesAsync();
     }
 }
 
 // ======================================================
-// CONFIGURACIÓN DE LA APLICACIÓN
+// HTTP PIPELINE
 // ======================================================
 
 if (app.Environment.IsDevelopment())
@@ -255,26 +306,48 @@ if (app.Environment.IsDevelopment())
 else
 {
     app.UseExceptionHandler("/Home/Error");
-
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+// En desarrollo HTTP no necesitamos forzar HTTPS.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseWebSockets();
+
 app.UseRouting();
+
 app.UseSession();
+
 app.UseAuthentication();
+
 app.UseAuthorization();
 
-app.MapStaticAssets();
+// ======================================================
+// SIGNALR
+// ======================================================
 
-app.MapHub<SolicitudesHub>("/hubs/solicitudes");
+app.MapHub<SolicitudesHub>(
+    "/hubs/solicitudes");
+
+// ======================================================
+// MVC
+// ======================================================
+
+app.MapStaticAssets();
 
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
 
-app.MapRazorPages().WithStaticAssets();
+app.MapRazorPages()
+    .WithStaticAssets();
+
+// ======================================================
+// START
+// ======================================================
 
 app.Run();
