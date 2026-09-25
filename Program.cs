@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using PlataformaCreditos.Data;
+using PlataformaCreditos.Hubs;
 using PlataformaCreditos.Models;
-
 var builder = WebApplication.CreateBuilder(args);
 
 // Connection String
@@ -25,14 +25,22 @@ builder.Services
     .AddEntityFrameworkStores<ApplicationDbContext>();
 
 // Redis Cache
-builder.Services.AddStackExchangeRedisCache(options =>
+if (builder.Environment.IsDevelopment())
 {
-    options.Configuration =
-        builder.Configuration["Redis:ConnectionString"]
-        ?? "localhost:6379";
+    builder.Services.AddDistributedMemoryCache();
+}
+else
+{
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration =
+            builder.Configuration["Redis:ConnectionString"]
+            ?? throw new InvalidOperationException(
+                "Redis:ConnectionString no configurado.");
 
-    options.InstanceName = "PlataformaCreditos:";
-});
+        options.InstanceName = "PlataformaCreditos:";
+    });
+}
 
 // Session
 builder.Services.AddSession(options =>
@@ -44,6 +52,8 @@ builder.Services.AddSession(options =>
 
 // MVC
 builder.Services.AddControllersWithViews();
+
+builder.Services.AddSignalR();
 
 builder.WebHost.UseUrls(
     $"http://0.0.0.0:{Environment.GetEnvironmentVariable("PORT") ?? "10000"}"
@@ -250,23 +260,21 @@ else
 }
 
 app.UseHttpsRedirection();
-
+app.UseWebSockets();
 app.UseRouting();
-
 app.UseSession();
-
 app.UseAuthentication();
-
 app.UseAuthorization();
 
 app.MapStaticAssets();
+
+app.MapHub<SolicitudesHub>("/hubs/solicitudes");
 
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
 
-app.MapRazorPages()
-    .WithStaticAssets();
+app.MapRazorPages().WithStaticAssets();
 
 app.Run();

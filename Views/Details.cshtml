@@ -1,0 +1,72 @@
+<div id="notificacionTiempoReal"
+     class="alert alert-info"
+     style="display:none;">
+</div>
+
+<div id="estadoActualizado"
+     class="alert alert-success"
+     style="display:none;">
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/10.0.0/signalr.min.js"></script>
+
+    <script>
+        const solicitudId = @Model.Id;
+
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/hubs/solicitudes")
+            .withAutomaticReconnect()
+            .build();
+
+        connection.on("SolicitudEstadoActualizado", function (data) {
+
+            if (data.solicitudId !== solicitudId) {
+                return;
+            }
+
+            document.getElementById("estadoActualizado").innerText =
+                "Solicitud #" + data.solicitudId +
+                " actualizada: " + data.estado;
+
+            document.getElementById("estadoActualizado").style.display =
+                "block";
+
+            setTimeout(function () {
+                location.reload();
+            }, 1000);
+        });
+
+        connection.onreconnecting(function () {
+            const elemento =
+                document.getElementById("notificacionTiempoReal");
+
+            elemento.innerText =
+                "Conexión perdida. Intentando reconectar...";
+
+            elemento.style.display = "block";
+        });
+
+        connection.onreconnected(function () {
+            const elemento =
+                document.getElementById("notificacionTiempoReal");
+
+            elemento.innerText =
+                "Conexión restablecida. Verificando estado...";
+
+            elemento.style.display = "block";
+
+            setTimeout(function () {
+                location.reload();
+            }, 500);
+        });
+
+        connection.start()
+            .then(function () {
+                console.log("WebSocket conectado.");
+            })
+            .catch(function (err) {
+                console.error(err.toString());
+            });
+    </script>
+}

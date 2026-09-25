@@ -23,7 +23,7 @@ namespace PlataformaCreditos.Controllers
             _cache = cache;
         }
 
-        // MIS SOLICITUDES + CACHE REDIS 60 SEGUNDOS
+        // MIS SOLICITUDES + CACHE 60 SEGUNDOS
         public async Task<IActionResult> Index()
         {
             var usuarioId = User.FindFirstValue(
@@ -47,7 +47,12 @@ namespace PlataformaCreditos.Controllers
             {
                 solicitudes =
                     JsonSerializer.Deserialize<List<SolicitudCredito>>(
-                        cacheData
+                        cacheData,
+                        new JsonSerializerOptions
+                        {
+                            ReferenceHandler =
+                                System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
+                        }
                     ) ?? new List<SolicitudCredito>();
             }
             else
@@ -65,7 +70,13 @@ namespace PlataformaCreditos.Controllers
 
                 await _cache.SetStringAsync(
                     cacheKey,
-                    JsonSerializer.Serialize(solicitudes),
+                    JsonSerializer.Serialize(
+                        solicitudes,
+                        new JsonSerializerOptions
+                        {
+                            ReferenceHandler =
+                                System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
+                        }),
                     opciones);
             }
 
